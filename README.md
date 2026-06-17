@@ -173,7 +173,6 @@ Create `.env.local`:
 NEXT_PUBLIC_SITE_URL=https://cli.andri.is
 KV_REST_API_URL=<vercel-kv-url>
 KV_REST_API_TOKEN=<vercel-kv-token>
-RESEND_API_KEY=<your-resend-key>
 ```
 
 ## 📊 Performance

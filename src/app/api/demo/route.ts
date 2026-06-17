@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // TODO: Implement actual demo request logic
-    // Could send email via Resend API or store in database
+    // Contact is handled client-side via a mailto: link; persist here if needed.
 
     return NextResponse.json({
       success: true,

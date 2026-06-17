@@ -278,7 +278,7 @@ function cmdContact(): CommandOutput {
                        GET IN TOUCH
 ================================================================
 
-📧 Email: ${personal.email}
+📧 Email: ${personal.email}  (click to open your mail app)
 
 Ready to simplify your IT? Let's connect!
 

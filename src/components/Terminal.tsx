@@ -78,6 +78,30 @@ export default function Terminal({ onWPMUpdate }: TerminalProps) {
 
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
+
+    // Make email addresses clickable as mailto: links (web-links addon only handles http/https)
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    term.registerLinkProvider({
+      provideLinks(lineNumber, callback) {
+        const line = term.buffer.active.getLine(lineNumber - 1);
+        if (!line) return callback(undefined);
+        const text = line.translateToString(true);
+        const links = [];
+        for (const match of text.matchAll(emailRegex)) {
+          const start = match.index ?? 0;
+          links.push({
+            text: match[0],
+            range: {
+              start: { x: start + 1, y: lineNumber },
+              end: { x: start + match[0].length, y: lineNumber },
+            },
+            activate: () => window.open(`mailto:${match[0]}`, '_self'),
+          });
+        }
+        callback(links.length ? links : undefined);
+      },
+    });
+
     term.open(terminalRef.current);
     fitAddon.fit();
 
