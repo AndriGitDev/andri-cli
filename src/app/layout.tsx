@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -74,33 +74,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         {children}
-        <Script src="https://cdn.jsdelivr.net/npm/swetrix@latest/dist/swetrix.js" strategy="afterInteractive" />
-        <Script id="swetrix-init" strategy="afterInteractive">
-          {`
-            document.addEventListener('DOMContentLoaded', function() {
-              if (window.swetrix) {
-                swetrix.init('X05bK6JBJ6ZJ', {
-                  apiURL: 'https://swetrixapi.kastro.is/log',
-                });
-                swetrix.trackViews();
-              }
-            });
-            if (document.readyState !== 'loading' && window.swetrix) {
-              swetrix.init('X05bK6JBJ6ZJ', {
-                apiURL: 'https://swetrixapi.kastro.is/log',
-              });
-              swetrix.trackViews();
-            }
-          `}
-        </Script>
-        <noscript>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://swetrixapi.kastro.is/log/noscript?pid=X05bK6JBJ6ZJ"
-            alt=""
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-        </noscript>
+        <Analytics />
       </body>
     </html>
   );
