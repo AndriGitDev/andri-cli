@@ -1,47 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { WpmTracker, validateWpmData } from '@/lib/wpm';
 
-interface WPMData {
-  sessionId: string;
-  characters: number;
-  timeElapsed: number;
-  accuracy: number;
-}
-
-interface SessionData {
-  wpmHistory: number[];
-  peakWpm: number;
-  achievements: string[];
-}
-
-// In-memory storage (replace with Vercel KV in production)
-const sessionData = new Map<string, SessionData>();
+const tracker = new WpmTracker();
 
 export async function POST(request: NextRequest) {
   try {
-    const body: WPMData = await request.json();
-    const { sessionId, characters, timeElapsed, accuracy } = body;
-
-    // Calculate WPM
-    const minutes = timeElapsed / 60;
-    const wpm = Math.round((characters / 5) / minutes);
-
-    // Get or create session data
-    const session = sessionData.get(sessionId) || {
-      wpmHistory: [],
-      peakWpm: 0,
-      achievements: [],
-    };
-
-    // Update session
-    session.wpmHistory.push(wpm);
-    if (wpm > session.peakWpm) {
-      session.peakWpm = wpm;
+    const body = await request.json();
+    if (!validateWpmData(body)) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
-
-    // Calculate average
-    const avgWpm = Math.round(
-      session.wpmHistory.reduce((a: number, b: number) => a + b, 0) / session.wpmHistory.length
-    );
+    const { sessionId, characters, timeElapsed, accuracy } = body;
+    const wpm = Math.round((characters / 5) / (timeElapsed / 60));
+    const session = tracker.record(sessionId, wpm);
+    const avgWpm = Math.round(session.totalWpm / session.samples);
 
     // Determine rank
     let rank = 'NOVICE';
@@ -57,9 +28,6 @@ export async function POST(request: NextRequest) {
     newAchievements.forEach((ach: string) => achievementsSet.add(ach));
     session.achievements = Array.from(achievementsSet);
 
-    // Save session
-    sessionData.set(sessionId, session);
-
     return NextResponse.json({
       wpm,
       avgWpm,
@@ -67,14 +35,14 @@ export async function POST(request: NextRequest) {
       rank,
       achievements: newAchievements,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }
 
 function checkAchievements(
   wpm: number,
-  session: SessionData,
+  session: { achievements: string[] },
   characters: number,
   accuracy: number
 ): string[] {
