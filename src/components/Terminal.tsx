@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -12,32 +12,58 @@ interface TerminalProps {
   onWPMUpdate?: (wpm: number) => void;
 }
 
+function writePrompt(term: XTerm) {
+  term.write('\x1b[1;32m>\x1b[0m ');
+}
+
+function clearCurrentLine(term: XTerm, current: string) {
+  for (let i = 0; i < current.length; i++) {
+    term.write('\b \b');
+  }
+}
+
+async function executeTerminalCommand(term: XTerm, command: string) {
+  const result = await executeCommand(command);
+
+  if (result.type === 'error') {
+    term.writeln(`\x1b[31m${result.text}\x1b[0m`);
+  } else if (result.type === 'success') {
+    term.writeln(`\x1b[32m${result.text}\x1b[0m`);
+  } else if (result.type === 'warning') {
+    term.writeln(`\x1b[33m${result.text}\x1b[0m`);
+  } else {
+    term.writeln(result.text);
+  }
+
+  writePrompt(term);
+
+  // Auto-scroll to bottom to show the prompt (with delay to ensure DOM updates)
+  setTimeout(() => {
+    term.scrollToBottom();
+  }, 10);
+}
+
+
 export default function Terminal({ onWPMUpdate }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wpmTrackerRef = useRef<WPMTracker | null>(null);
-  const [currentLine, setCurrentLine] = useState('');
-  const [commandHistory, setCommandHistory] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('terminal-history');
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
-  const [historyIndex, setHistoryIndex] = useState(-1);
-
-  // Persist command history to localStorage
-  useEffect(() => {
-    if (commandHistory.length > 0) {
-      // Keep only the last 100 commands
-      const historyToSave = commandHistory.slice(-100);
-      localStorage.setItem('terminal-history', JSON.stringify(historyToSave));
-    }
-  }, [commandHistory]);
+  const notifyWpm = useEffectEvent((wpm: number) => onWPMUpdate?.(wpm));
 
   useEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
+
+    let commandHistory: string[] = [];
+    let historyIndex = -1;
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem('terminal-history') ?? '[]');
+      if (Array.isArray(saved)) {
+        commandHistory = saved.filter((entry): entry is string => typeof entry === 'string').slice(-100);
+      }
+    } catch {
+      // Corrupt or unavailable browser storage must not prevent startup.
+    }
 
     // Initialize terminal
     const term = new XTerm({
@@ -110,7 +136,7 @@ export default function Terminal({ onWPMUpdate }: TerminalProps) {
 
     // Initialize WPM tracker
     const wpmTracker = new WPMTracker((wpm) => {
-      if (onWPMUpdate) onWPMUpdate(wpm);
+      notifyWpm(wpm);
     });
     wpmTrackerRef.current = wpmTracker;
 
@@ -145,7 +171,12 @@ export default function Terminal({ onWPMUpdate }: TerminalProps) {
         const command = currentInput.trim();
 
         if (command) {
-          setCommandHistory((prev) => [...prev, command]);
+          commandHistory = [...commandHistory, command].slice(-100);
+          try {
+            localStorage.setItem('terminal-history', JSON.stringify(commandHistory));
+          } catch {
+            // Keep the terminal usable when storage is unavailable or full.
+          }
           executeTerminalCommand(term, command);
         } else {
           writePrompt(term);
@@ -154,13 +185,13 @@ export default function Terminal({ onWPMUpdate }: TerminalProps) {
         }
 
         currentInput = '';
-        setCurrentLine('');
-        setHistoryIndex(-1);
+
+        historyIndex = -1;
       } else if (code === 127) {
         // Backspace
         if (currentInput.length > 0) {
           currentInput = currentInput.slice(0, -1);
-          setCurrentLine(currentInput);
+
           term.write('\b \b');
           wpmTracker.trackBackspace();
         }
@@ -171,34 +202,34 @@ export default function Terminal({ onWPMUpdate }: TerminalProps) {
           // Up arrow - previous command
           if (commandHistory.length > 0) {
             const newIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
-            setHistoryIndex(newIndex);
+            historyIndex = newIndex;
             const cmd = commandHistory[commandHistory.length - 1 - newIndex];
             clearCurrentLine(term, currentInput);
             currentInput = cmd;
-            setCurrentLine(cmd);
+
             term.write(cmd);
           }
         } else if (sequence === '[B') {
           // Down arrow - next command
           if (historyIndex > 0) {
             const newIndex = historyIndex - 1;
-            setHistoryIndex(newIndex);
+            historyIndex = newIndex;
             const cmd = commandHistory[commandHistory.length - 1 - newIndex];
             clearCurrentLine(term, currentInput);
             currentInput = cmd;
-            setCurrentLine(cmd);
+
             term.write(cmd);
           } else if (historyIndex === 0) {
-            setHistoryIndex(-1);
+            historyIndex = -1;
             clearCurrentLine(term, currentInput);
             currentInput = '';
-            setCurrentLine('');
+
           }
         }
       } else if (code >= 32) {
         // Printable characters
         currentInput += data;
-        setCurrentLine(currentInput);
+
         term.write(data);
         // Keep scrolling to bottom as user types
         setTimeout(() => term.scrollToBottom(), 0);
@@ -214,41 +245,14 @@ export default function Terminal({ onWPMUpdate }: TerminalProps) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      wpmTrackerRef.current?.destroy();
+      wpmTracker.destroy();
       term.dispose();
+      xtermRef.current = null;
+      fitAddonRef.current = null;
+      wpmTrackerRef.current = null;
     };
   }, []);
 
-  const writePrompt = (term: XTerm) => {
-    term.write('\x1b[1;32m>\x1b[0m ');
-  };
-
-  const clearCurrentLine = (term: XTerm, current: string) => {
-    for (let i = 0; i < current.length; i++) {
-      term.write('\b \b');
-    }
-  };
-
-  const executeTerminalCommand = async (term: XTerm, command: string) => {
-    const result = await executeCommand(command);
-
-    if (result.type === 'error') {
-      term.writeln(`\x1b[31m${result.text}\x1b[0m`);
-    } else if (result.type === 'success') {
-      term.writeln(`\x1b[32m${result.text}\x1b[0m`);
-    } else if (result.type === 'warning') {
-      term.writeln(`\x1b[33m${result.text}\x1b[0m`);
-    } else {
-      term.writeln(result.text);
-    }
-
-    writePrompt(term);
-
-    // Auto-scroll to bottom to show the prompt (with delay to ensure DOM updates)
-    setTimeout(() => {
-      term.scrollToBottom();
-    }, 10);
-  };
 
   return (
     <div className="terminal-container">

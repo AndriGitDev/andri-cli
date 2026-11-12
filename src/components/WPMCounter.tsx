@@ -1,95 +1,82 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { WPMRank } from '@/types/terminal';
 
 interface WPMCounterProps {
   wpm: number;
 }
 
+function getRank(wpm: number): WPMRank {
+  if (wpm >= 100) return 'GODLIKE';
+  if (wpm >= 81) return 'ELITE';
+  if (wpm >= 61) return 'EXPERT';
+  if (wpm >= 41) return 'ADVANCED';
+  if (wpm >= 21) return 'INTERMEDIATE';
+  return 'NOVICE';
+}
+
+function getRankColor(rank: WPMRank): string {
+  switch (rank) {
+    case 'GODLIKE':
+      return '#ff006e';
+    case 'ELITE':
+      return '#ff006e';
+    case 'EXPERT':
+      return '#00ff9d';
+    case 'ADVANCED':
+      return '#00d4ff';
+    case 'INTERMEDIATE':
+      return '#ffbe0b';
+    case 'NOVICE':
+      return '#ff6b6b';
+    default:
+      return '#b0b0b0';
+  }
+}
+
+function getRankEmoji(rank: WPMRank): string {
+  switch (rank) {
+    case 'GODLIKE':
+      return '🔥🔥🔥';
+    case 'ELITE':
+      return '🔥🔥';
+    case 'EXPERT':
+      return '🔥';
+    case 'ADVANCED':
+      return '⚡';
+    case 'INTERMEDIATE':
+      return '💪';
+    case 'NOVICE':
+      return '🐢';
+    default:
+      return '';
+  }
+}
+
+function getRankMessage(rank: WPMRank): string {
+  switch (rank) {
+    case 'GODLIKE':
+      return 'UNSTOPPABLE!';
+    case 'ELITE':
+      return 'Elite Hacker';
+    case 'EXPERT':
+      return 'Expert Mode';
+    case 'ADVANCED':
+      return 'Getting Faster!';
+    case 'INTERMEDIATE':
+      return 'Warming Up...';
+    case 'NOVICE':
+      return 'Keep Typing!';
+    default:
+      return 'Start Typing';
+  }
+}
+
+
 export default function WPMCounter({ wpm }: WPMCounterProps) {
-  const [displayWPM, setDisplayWPM] = useState(0);
-  const [rank, setRank] = useState<WPMRank>('NOVICE');
-  const [barWidth, setBarWidth] = useState(0);
-
-  useEffect(() => {
-    // Animate WPM counter
-    setDisplayWPM(wpm);
-
-    // Update rank
-    const newRank = getRank(wpm);
-    setRank(newRank);
-
-    // Update progress bar
-    const percentage = Math.min((wpm / 100) * 100, 100);
-    setBarWidth(percentage);
-  }, [wpm]);
-
-  const getRank = (wpm: number): WPMRank => {
-    if (wpm >= 100) return 'GODLIKE';
-    if (wpm >= 81) return 'ELITE';
-    if (wpm >= 61) return 'EXPERT';
-    if (wpm >= 41) return 'ADVANCED';
-    if (wpm >= 21) return 'INTERMEDIATE';
-    return 'NOVICE';
-  };
-
-  const getRankColor = (rank: WPMRank): string => {
-    switch (rank) {
-      case 'GODLIKE':
-        return '#ff006e';
-      case 'ELITE':
-        return '#ff006e';
-      case 'EXPERT':
-        return '#00ff9d';
-      case 'ADVANCED':
-        return '#00d4ff';
-      case 'INTERMEDIATE':
-        return '#ffbe0b';
-      case 'NOVICE':
-        return '#ff6b6b';
-      default:
-        return '#b0b0b0';
-    }
-  };
-
-  const getRankEmoji = (rank: WPMRank): string => {
-    switch (rank) {
-      case 'GODLIKE':
-        return '🔥🔥🔥';
-      case 'ELITE':
-        return '🔥🔥';
-      case 'EXPERT':
-        return '🔥';
-      case 'ADVANCED':
-        return '⚡';
-      case 'INTERMEDIATE':
-        return '💪';
-      case 'NOVICE':
-        return '🐢';
-      default:
-        return '';
-    }
-  };
-
-  const getRankMessage = (rank: WPMRank): string => {
-    switch (rank) {
-      case 'GODLIKE':
-        return 'UNSTOPPABLE!';
-      case 'ELITE':
-        return 'Elite Hacker';
-      case 'EXPERT':
-        return 'Expert Mode';
-      case 'ADVANCED':
-        return 'Getting Faster!';
-      case 'INTERMEDIATE':
-        return 'Warming Up...';
-      case 'NOVICE':
-        return 'Keep Typing!';
-      default:
-        return 'Start Typing';
-    }
-  };
+  const displayWPM = wpm;
+  const rank = getRank(wpm);
+  const barWidth = Math.max(0, Math.min(wpm, 100));
 
   const rankColor = getRankColor(rank);
 

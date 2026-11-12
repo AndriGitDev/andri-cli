@@ -17,7 +17,11 @@ export default function MetricsPanel({ wpm = 0 }: MetricsPanelProps) {
     avgWpm: 0,
   });
 
-  const [streak, setStreak] = useState(0);
+  const [streakState, setStreakState] = useState({ wpm, streak: wpm > 60 ? 1 : 0 });
+  if (streakState.wpm !== wpm) {
+    setStreakState({ wpm, streak: wpm > 60 ? streakState.streak + 1 : 0 });
+  }
+  const streak = streakState.streak;
 
   useEffect(() => {
     const startTime = Date.now();
@@ -41,13 +45,6 @@ export default function MetricsPanel({ wpm = 0 }: MetricsPanelProps) {
     return () => clearInterval(interval);
   }, [wpm]);
 
-  useEffect(() => {
-    if (wpm > 60) {
-      setStreak((prev) => prev + 1);
-    } else {
-      setStreak(0);
-    }
-  }, [wpm]);
 
   const formatUptime = (seconds: number): string => {
     const h = Math.floor(seconds / 3600);
