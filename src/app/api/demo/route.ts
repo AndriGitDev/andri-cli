@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidContactEmail } from '@/lib/contact-email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidContactEmail(email)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
         { status: 400 }
